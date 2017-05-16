@@ -11,10 +11,10 @@ namespace TestFsharpFromCSharp
     {
         static void Main(string[] args)
         {
-            Person p = new Person();
-            p.Name = "matej";
+            //Person p = new Person();
+            //p.Name = "matej";
 
-            Console.WriteLine(p.Name);
+            //Console.WriteLine(p.Name);
             Console.ReadLine();
         }
     }

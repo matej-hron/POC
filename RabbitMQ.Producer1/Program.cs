@@ -1,6 +1,9 @@
 ﻿using RabbitMQ.Client;
 using System;
 using System.Text;
+using System.Threading.Tasks;
+using Akka.Actor;
+using RabbitMQ.Producer1.Tests.Actors;
 
 namespace RabbitMQ.Producer1
 {
@@ -8,32 +11,30 @@ namespace RabbitMQ.Producer1
     {
         public static void Main()
         {
-            var factory = new ConnectionFactory() { HostName = "localhost", UserName="guest", Password="guest"};
-            using (var connection = factory.CreateConnection())
-            using (var channel = connection.CreateModel())
-            {
-                channel.QueueDeclare(queue: "hello",
-                                     durable: false,
-                                     exclusive: false,
-                                     autoDelete: false,
-                                     arguments: null);
-
-                string message = "Hello World!";
-                var body = Encoding.UTF8.GetBytes(message);
-
-                while (true)
-                {
-                    channel.BasicPublish(exchange: "",
-                                         routingKey: "hello",
-                                         basicProperties: null,
-                                         body: body);
-                    Console.WriteLine(" [x] Sent {0}", message);
-                    Console.ReadLine();
-                }
-            }
-
-            Console.WriteLine(" Press [enter] to exit.");
-            Console.ReadLine();
+            //BasicPublishTest();
+            Run();
         }
+
+        private static void Run()
+        {
+            // ActorSystem is a heavy object: create only one per application
+            ActorSystem system = ActorSystem.Create("MySystem");
+            var emmiterActor = system.ActorOf(Props.Create(typeof(PublishingActor)), "emmiter");
+            emmiterActor.Tell(new PublishingActor.StartEmmitMessages(int.MaxValue));
+
+            Task.Delay(100).Wait();
+
+            var sub1 = system.ActorOf(Props.Create(typeof(SubscribeActor)), "subscriber1");
+            var sub2 = system.ActorOf(Props.Create(typeof(SubscribeActor)), "subscriber2");
+            sub1.Tell(new SubscribeActor.StartReceive());
+            sub2.Tell(new SubscribeActor.StartReceive());
+
+
+            Console.WriteLine("Publishing");
+            Console.ReadLine();
+
+            system.Terminate();
+        }
+
     }
 }

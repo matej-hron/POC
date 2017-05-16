@@ -22,17 +22,50 @@ namespace AkkaStreams
             //Test1();
             //Test2();
             //Test3();
-
             //Test4();
             //TestGraph();
             //Test5();
             //TestDifferentWaysToCreateSource();
             //TestExplicitWiringSourceFlowAndSink();
             //TestFussion();
-            TestTick();
+            //TestTick();
+            TestAsync();
 
             Console.WriteLine("Finished");
             Console.ReadLine();
+        }
+
+        private static void TestAsync()
+        {
+            Console.WriteLine("Start");
+            WithMaterializer(materializer =>
+            {
+                Console.WriteLine(
+                    Source.From(Enumerable.Range(1, 100))
+                        .Select(i =>
+                        {
+                            Console.WriteLine($"A: {i}");
+                            return i;
+                        })
+                        .Async()
+                        .Select(i =>
+                        {
+                            Console.WriteLine($"B: {i}");
+                            return i;
+                        })
+                        
+                        .Async()
+                        .Select(i =>
+                        {
+                            Console.WriteLine($"C: {i}");
+                            return i;
+                        })
+                        .Async()
+                        .RunWith(Sink.Aggregate<int, int>(0, (acc, i) => acc + i), materializer)
+                        .Result);
+
+                Task.Delay(100).Wait();
+            });
         }
 
         private static void TestTick()
@@ -109,6 +142,7 @@ namespace AkkaStreams
             {
                 var source = GetSource;
                 source.RunForeach(Console.WriteLine, m);
+                Task.Delay(500).Wait();
             });
         }
 
@@ -129,7 +163,7 @@ namespace AkkaStreams
         {
             WithMaterializer(m =>
             {
-                var result = Factorials.Select(_ => _.ToString()).RunWith(LineSink("factorial2.txt"), m);
+                var result = Factorials.Select(_ => _.ToString()).RunWith(LineSink(), m);
                 Console.WriteLine(result.Result);
             });
         }
@@ -152,7 +186,7 @@ namespace AkkaStreams
         private static Source<BigInteger, NotUsed> Factorials => GetSource.Scan(new BigInteger(1), (acc, next) => acc * next);
 
 
-        private static Sink<string, Task<IOResult>> LineSink(string filename)
+        private static Sink<string, Task<IOResult>> LineSink()
         {
             return Flow.Create<string>()
                 .Select(s => ByteString.FromString($"{s}\n"))
