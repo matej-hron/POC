@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -31,29 +32,30 @@ namespace RabbitMQ.Producer1.Tests.Actors
             {
                 channel.ExchangeDeclare(exchange: "testexchange", type: "fanout");
 
-                var source = Source.From(Enumerable.Range(1, startEmmitMessages.MessageCount));
-                
-                var t = source.RunForeach(i =>
-                {
-                    if(i % 1000 == 0)
-                        Console.WriteLine(i);
+                var source = Source.From(Enumerable.Range(1, startEmmitMessages.MessageCount)).Throttle(150, TimeSpan.FromSeconds(1), 1, ThrottleMode.Shaping);
+                var t = source.RunForeach(i => { PublishMessage(i, channel); }, materializer);
+                //Enumerable.Range(1, startEmmitMessages.MessageCount).ToList().ForEach(i => PublishMessage(i, channel));
 
-                    var data = new WorkMessage(i);
-
-                    channel.BasicPublish(exchange: "testexchange",
-                        routingKey: "",
-                        basicProperties: null,
-                        body: serializer.Serialize(data));
-
-
-                }, materializer);
-
-                t.Wait();
+                Task.Delay(TimeSpan.FromMinutes(100)).Wait();
             }
 
         }
 
-        
+        private void PublishMessage(int i, IModel channel)
+        {
+            if (i % 1000 == 0)
+                Console.WriteLine($"published {i}");
+
+            var data = new WorkMessage(i);
+
+            channel.BasicPublish(exchange: "testexchange",
+                routingKey: "",
+                basicProperties: null,
+                body: serializer.Serialize(data));
+
+            Task.Delay(10).Wait();
+        }
+
 
         public class StartEmmitMessages
         {

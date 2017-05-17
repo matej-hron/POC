@@ -28,6 +28,7 @@ namespace RabbitMQ.Producer1.Tests.Actors
                 channel.ExchangeDeclare(exchange: "testexchange", type: "fanout");
 
                 var queueName = channel.QueueDeclare().QueueName;
+
                 channel.QueueBind(queue: queueName,
                     exchange: "testexchange",
                     routingKey: "");
@@ -35,20 +36,23 @@ namespace RabbitMQ.Producer1.Tests.Actors
                 Console.WriteLine("Receiving");
 
                 var consumer = new EventingBasicConsumer(channel);
+
                 consumer.Received += (model, ea) =>
                 {
                     var body = ea.Body;
                     var data = serializer.Deserialize<WorkMessage>(body);
-                    Console.WriteLine($"received {data.Id}");
+                    if(data.Id % 1000 == 0)
+                        Console.WriteLine($"received {data.Id}");
                 };
 
                 channel.BasicConsume(queue: queueName,
                     noAck: true,
                     consumer: consumer);
 
-                Task.Delay(TimeSpan.FromMinutes(1));
+                Task.Delay(TimeSpan.FromMinutes(100)).Wait();
 
             }
+
         }
 
         public class StartReceive

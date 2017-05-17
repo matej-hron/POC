@@ -1,5 +1,6 @@
 ﻿using RabbitMQ.Client;
 using System;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Akka.Actor;
@@ -20,14 +21,11 @@ namespace RabbitMQ.Producer1
             // ActorSystem is a heavy object: create only one per application
             ActorSystem system = ActorSystem.Create("MySystem");
             var emmiterActor = system.ActorOf(Props.Create(typeof(PublishingActor)), "emmiter");
-            emmiterActor.Tell(new PublishingActor.StartEmmitMessages(int.MaxValue));
+            emmiterActor.Tell(new PublishingActor.StartEmmitMessages(1000000));
 
             Task.Delay(100).Wait();
 
-            var sub1 = system.ActorOf(Props.Create(typeof(SubscribeActor)), "subscriber1");
-            var sub2 = system.ActorOf(Props.Create(typeof(SubscribeActor)), "subscriber2");
-            sub1.Tell(new SubscribeActor.StartReceive());
-            sub2.Tell(new SubscribeActor.StartReceive());
+            CreateSubscribers(system, 10);
 
 
             Console.WriteLine("Publishing");
@@ -36,5 +34,17 @@ namespace RabbitMQ.Producer1
             system.Terminate();
         }
 
+
+        private static void CreateSubscribers(ActorSystem system, int number)
+        {
+            Enumerable.Range(1, number).ToList().ForEach(i =>
+            {
+                var sub = system.ActorOf(Props.Create(typeof(SubscribeActor)), $"subscriber{i}");
+                sub.Tell(new SubscribeActor.StartReceive());
+            });
+        }
     }
+
+
+
 }
